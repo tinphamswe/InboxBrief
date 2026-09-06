@@ -23,14 +23,30 @@ final class InboxBriefUITests: XCTestCase {
     }
 
     @MainActor
-    func testExample() throws {
-        // UI tests must launch the application that they test.
+    func testInitialTriageAndAccountNavigation() throws {
         let app = XCUIApplication()
         app.launch()
 
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        // XCUIAutomation Documentation
-        // https://developer.apple.com/documentation/xcuiautomation
+        XCTAssertTrue(app.navigationBars["Inbox Brief"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Check inboxes"].exists)
+
+        app.buttons["Accounts"].tap()
+
+        XCTAssertTrue(app.navigationBars["Accounts"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Add Gmail account"].exists)
+    }
+
+    @MainActor
+    func testCheckInboxesShowsMissingAccountState() throws {
+        let app = XCUIApplication()
+        app.launch()
+
+        let checkButton = app.buttons["Check inboxes"]
+        XCTAssertTrue(checkButton.waitForExistence(timeout: 3))
+        checkButton.tap()
+
+        XCTAssertTrue(app.staticTexts["Connect a Gmail account"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Manage accounts"].exists)
     }
 
     @MainActor

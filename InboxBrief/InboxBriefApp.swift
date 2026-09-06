@@ -9,9 +9,14 @@ import SwiftUI
 
 @main
 struct InboxBriefApp: App {
+    private let container = AppContainer.live()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(
+                briefingViewModel: container.briefingViewModel,
+                accountsViewModel: container.accountsViewModel
+            )
         }
     }
 }

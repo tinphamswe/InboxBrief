@@ -1,0 +1,11 @@
+.DS_Store
+DerivedData/
+*.xcuserstate
+**/xcuserdata/
+
+# Local credentials and developer-only configuration
+Secrets.xcconfig
+**/Secrets.xcconfig
+.env
+.env.*
+!.env.example
