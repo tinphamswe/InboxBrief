@@ -37,7 +37,14 @@ jobs:
         run: |
           runtime_directory="$RUNNER_TEMP/ios-simulator-runtime"
           mkdir -p "$runtime_directory"
-          xcodebuild -downloadPlatform iOS -exportPath "$runtime_directory"
+          for attempt in 1 2 3; do
+            if xcodebuild -downloadPlatform iOS -exportPath "$runtime_directory"; then
+              break
+            fi
+            if [ "$attempt" = 3 ]; then
+              exit 1
+            fi
+          done
           xcodebuild -importPlatform "$runtime_directory"/*.dmg
 
       - name: Create simulator
