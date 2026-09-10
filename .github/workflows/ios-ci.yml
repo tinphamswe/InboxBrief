@@ -1,0 +1,52 @@
+name: iOS CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build and test
+    runs-on: macos-15
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Resolve Swift packages
+        run: >-
+          xcodebuild -resolvePackageDependencies
+          -project InboxBrief.xcodeproj
+          -scheme InboxBrief
+
+      - name: Run tests
+        run: >-
+          xcodebuild test
+          -project InboxBrief.xcodeproj
+          -scheme InboxBrief
+          -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=latest'
+          -parallel-testing-enabled NO
+          -resultBundlePath TestResults.xcresult
+
+      - name: Upload test results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-test-results
+          path: TestResults.xcresult
+          if-no-files-found: ignore
+          retention-days: 7

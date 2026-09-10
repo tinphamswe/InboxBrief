@@ -127,6 +127,10 @@ xcodebuild \
 
 Tests use immediate fakes for Gmail, OAuth, AI, networking, time, and credential storage. They require no real accounts, keys, network access, or arbitrary delays.
 
+## Continuous integration
+
+GitHub Actions runs the shared `InboxBrief` scheme on every pull request to `main`, every push to `main`, and on demand. It resolves Swift packages, runs the simulator test suite, and uploads the `.xcresult` bundle for inspection. CI requires no API keys, OAuth credentials, signing certificate, or App Store Connect access.
+
 ## Architecture
 
 InboxBrief uses SwiftUI, Observation, MVVM, and Swift Concurrency in a single app target:
