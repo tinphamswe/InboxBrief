@@ -149,6 +149,7 @@ struct PartialFailureView: View {
 struct ImportantEmailRow: View {
     let email: AnalyzedEmail
     let open: @MainActor () async -> Void
+    let createReminder: @MainActor () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -177,6 +178,15 @@ struct ImportantEmailRow: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                 Spacer()
+            }
+
+            VStack(alignment: .trailing, spacing: 8) {
+                if email.assessment.actionRequired {
+                    Button(action: createReminder) {
+                        Label("Create Reminder", systemImage: "checkmark.circle")
+                    }
+                    .buttonStyle(.bordered)
+                }
                 AsyncButton(action: open) {
                     Label("Open Email", systemImage: "arrow.up.forward.app")
                 }
@@ -184,7 +194,96 @@ struct ImportantEmailRow: View {
                 .disabled(email.message.originalTarget == nil)
                 .accessibilityHint("Opens Gmail and copies the exact message search when needed")
             }
+            .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .padding(.vertical, 6)
+    }
+}
+
+struct ReminderEditorSheet: View {
+    @State private var draft: ReminderDraft
+
+    let isSaving: Bool
+    let error: BriefingViewModel.ReminderPresentationError?
+    let save: @MainActor (ReminderDraft) async -> Void
+    let cancel: @MainActor () -> Void
+
+    init(
+        draft: ReminderDraft,
+        isSaving: Bool,
+        error: BriefingViewModel.ReminderPresentationError?,
+        save: @escaping @MainActor (ReminderDraft) async -> Void,
+        cancel: @escaping @MainActor () -> Void
+    ) {
+        _draft = State(initialValue: draft)
+        self.isSaving = isSaving
+        self.error = error
+        self.save = save
+        self.cancel = cancel
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Reminder") {
+                    TextField("Title", text: $draft.title, axis: .vertical)
+                    Toggle("Add due date", isOn: hasDueDateBinding)
+                    if draft.dueDate != nil {
+                        DatePicker(
+                            "Due date",
+                            selection: dueDateBinding,
+                            displayedComponents: .date
+                        )
+                    }
+                }
+
+                Section("Notes") {
+                    TextEditor(text: $draft.notes)
+                        .frame(minHeight: 160)
+                }
+
+                if let error {
+                    Section {
+                        Label(error.message, systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.red)
+                    }
+                }
+            }
+            .navigationTitle("New Reminder")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel", action: cancel)
+                        .disabled(isSaving)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    AsyncButton(action: { await save(draft) }) {
+                        if isSaving {
+                            ProgressView()
+                        } else {
+                            Text("Create")
+                        }
+                    }
+                    .disabled(isSaving || draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+        }
+        .interactiveDismissDisabled(isSaving)
+    }
+
+    private var dueDateBinding: Binding<Date> {
+        Binding(
+            get: { draft.dueDate ?? Date() },
+            set: { draft.dueDate = $0 }
+        )
+    }
+
+    private var hasDueDateBinding: Binding<Bool> {
+        Binding(
+            get: { draft.dueDate != nil },
+            set: { hasDueDate in
+                draft.dueDate = hasDueDate ? (draft.dueDate ?? Date()) : nil
+            }
+        )
     }
 }

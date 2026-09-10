@@ -51,18 +51,51 @@ final class BriefingViewModel {
         }
     }
 
+    enum ReminderPresentationError: Equatable {
+        case accessDenied
+        case unavailable
+        case defaultListUnavailable
+        case saveFailed
+
+        var message: String {
+            switch self {
+            case .accessDenied:
+                "Allow Reminders access for InboxBrief in Settings, then try again."
+            case .unavailable:
+                "Reminders is currently unavailable. Try again shortly."
+            case .defaultListUnavailable:
+                "Set up a default Reminders list, then try again."
+            case .saveFailed:
+                "InboxBrief couldn’t save the reminder. Try again."
+            }
+        }
+    }
+
     private let generateBrief: GenerateInboxBriefUseCase
     private let messageOpener: any OriginalMessageOpening
+    private let createReminderDraft: CreateReminderDraftUseCase
+    private let reminderCreator: any ReminderCreating
 
     @ObservationIgnored
     private var refreshTask: Task<Void, Never>?
 
     private(set) var state: State = .idle
     private(set) var openMessageNotice: String?
+    private(set) var reminderDraft: ReminderDraft?
+    private(set) var reminderError: ReminderPresentationError?
+    private(set) var isCreatingReminder = false
+    private(set) var reminderNotice: String?
 
-    init(generateBrief: GenerateInboxBriefUseCase, messageOpener: any OriginalMessageOpening) {
+    init(
+        generateBrief: GenerateInboxBriefUseCase,
+        messageOpener: any OriginalMessageOpening,
+        createReminderDraft: CreateReminderDraftUseCase,
+        reminderCreator: any ReminderCreating
+    ) {
         self.generateBrief = generateBrief
         self.messageOpener = messageOpener
+        self.createReminderDraft = createReminderDraft
+        self.reminderCreator = reminderCreator
     }
 
     @discardableResult
@@ -116,6 +149,39 @@ final class BriefingViewModel {
         openMessageNotice = nil
     }
 
+    func beginReminder(for email: AnalyzedEmail) {
+        reminderDraft = createReminderDraft.execute(for: email)
+        reminderError = nil
+    }
+
+    func dismissReminderEditor() {
+        guard !isCreatingReminder else { return }
+        reminderDraft = nil
+        reminderError = nil
+    }
+
+    func saveReminder(_ draft: ReminderDraft) async {
+        guard reminderDraft?.id == draft.id, !isCreatingReminder else { return }
+
+        isCreatingReminder = true
+        reminderError = nil
+        defer { isCreatingReminder = false }
+
+        do {
+            try await reminderCreator.create(draft)
+            reminderDraft = nil
+            reminderNotice = "Reminder created."
+        } catch let error as ReminderCreationError {
+            reminderError = map(error)
+        } catch {
+            reminderError = .unavailable
+        }
+    }
+
+    func dismissReminderNotice() {
+        reminderNotice = nil
+    }
+
     /// Chooses the first-run onboarding state from successfully loaded local account metadata.
     func setInitialAccountAvailability(_ accounts: [MailAccount]) {
         guard case .idle = state,
@@ -155,6 +221,15 @@ final class BriefingViewModel {
     ) {
         guard state.isLoading else { return }
         state = .loading(previous: previous, progress: progress)
+    }
+
+    private func map(_ error: ReminderCreationError) -> ReminderPresentationError {
+        switch error {
+        case .accessDenied: return .accessDenied
+        case .unavailable: return .unavailable
+        case .defaultListUnavailable: return .defaultListUnavailable
+        case .saveFailed: return .saveFailed
+        }
     }
 }
 

@@ -31,3 +31,10 @@ enum AccountManagementError: Error, Equatable, Sendable {
     case authenticationFailed
     case storageUnavailable
 }
+
+enum ReminderCreationError: Error, Equatable, Sendable {
+    case accessDenied
+    case unavailable
+    case defaultListUnavailable
+    case saveFailed
+}

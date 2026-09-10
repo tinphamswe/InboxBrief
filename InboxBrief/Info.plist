@@ -37,6 +37,8 @@
 	<string>$(GOOGLE_REDIRECT_SCHEME)</string>
 	<key>AIProxyURL</key>
 	<string>$(AI_PROXY_URL)</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>InboxBrief creates reminders only when you ask it to.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UILaunchScreen</key>

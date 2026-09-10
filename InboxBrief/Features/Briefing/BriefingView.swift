@@ -51,6 +51,35 @@ struct BriefingView: View {
         } message: {
             Text(viewModel.openMessageNotice ?? "")
         }
+        .alert(
+            "Reminder",
+            isPresented: Binding(
+                get: { viewModel.reminderNotice != nil },
+                set: { if !$0 { viewModel.dismissReminderNotice() } }
+            )
+        ) {
+            Button("OK", role: .cancel) { viewModel.dismissReminderNotice() }
+        } message: {
+            Text(viewModel.reminderNotice ?? "")
+        }
+        .sheet(
+            item: Binding(
+                get: { viewModel.reminderDraft },
+                set: { draft in
+                    if draft == nil {
+                        viewModel.dismissReminderEditor()
+                    }
+                }
+            )
+        ) { draft in
+            ReminderEditorSheet(
+                draft: draft,
+                isSaving: viewModel.isCreatingReminder,
+                error: viewModel.reminderError,
+                save: { draft in await viewModel.saveReminder(draft) },
+                cancel: viewModel.dismissReminderEditor
+            )
+        }
         .onChange(of: accountsViewModel.accounts) { _, accounts in
             viewModel.updateAccountAvailability(accounts)
         }
@@ -125,6 +154,8 @@ struct BriefingView: View {
                 ForEach(brief.emails) { email in
                     ImportantEmailRow(email: email) {
                         await viewModel.openOriginal(email)
+                    } createReminder: {
+                        viewModel.beginReminder(for: email)
                     }
                 }
             }
@@ -173,6 +204,8 @@ struct BriefingView: View {
                         ForEach(previous.emails) { email in
                             ImportantEmailRow(email: email) {
                                 await viewModel.openOriginal(email)
+                            } createReminder: {
+                                viewModel.beginReminder(for: email)
                             }
                         }
                     }

@@ -121,7 +121,7 @@ struct BriefingViewModelTests {
             analyzer: ThrowingViewModelAnalyzer(failure: .authenticationFailed),
             dateProvider: DateProvider(now: { Date(timeIntervalSince1970: 100_000) })
         )
-        let viewModel = BriefingViewModel(generateBrief: useCase, messageOpener: ViewModelOpener())
+        let viewModel = makeViewModel(useCase: useCase)
 
         await viewModel.refresh()
 
@@ -139,7 +139,7 @@ struct BriefingViewModelTests {
             analyzer: analyzer,
             dateProvider: DateProvider(now: { Date(timeIntervalSince1970: 100_000) })
         )
-        let viewModel = BriefingViewModel(generateBrief: useCase, messageOpener: ViewModelOpener())
+        let viewModel = makeViewModel(useCase: useCase)
 
         let refresh = Task { await viewModel.refresh() }
         await analyzer.waitUntilStarted()
@@ -168,7 +168,7 @@ struct BriefingViewModelTests {
             analyzer: analyzer,
             dateProvider: DateProvider(now: { Date(timeIntervalSince1970: 100_000) })
         )
-        let viewModel = BriefingViewModel(generateBrief: useCase, messageOpener: ViewModelOpener())
+        let viewModel = makeViewModel(useCase: useCase)
 
         let refresh = viewModel.startRefresh()
         await analyzer.waitUntilStarted()
@@ -195,7 +195,7 @@ struct BriefingViewModelTests {
             analyzer: EchoAnalyzer(),
             dateProvider: DateProvider(now: { Date(timeIntervalSince1970: 100_000) })
         )
-        let viewModel = BriefingViewModel(generateBrief: useCase, messageOpener: ViewModelOpener())
+        let viewModel = makeViewModel(useCase: useCase)
 
         await viewModel.refresh()
         await viewModel.refresh()
@@ -207,10 +207,52 @@ struct BriefingViewModelTests {
         #expect(brief.emails.first?.id == second.id)
     }
 
+    @Test("creates a reminder after the user reviews an actionable email")
+    func createsReminder() async {
+        let account = account("reminder")
+        let email = AnalyzedEmail(message: message("reminder", account: account), assessment: assessment(for: message("reminder", account: account)))
+        let creator = RecordingReminderCreator()
+        let viewModel = makeViewModel(accounts: [], reminderCreator: creator)
+
+        viewModel.beginReminder(for: email)
+        guard let draft = viewModel.reminderDraft else {
+            Issue.record("Expected a reminder draft")
+            return
+        }
+        await viewModel.saveReminder(draft)
+
+        #expect(creator.createdDraft == draft)
+        #expect(viewModel.reminderDraft == nil)
+        #expect(viewModel.reminderNotice == "Reminder created.")
+    }
+
+    @Test("keeps a reminder draft open after a permission failure")
+    func reminderPermissionFailure() async {
+        let account = account("reminder-error")
+        let message = message("reminder-error", account: account)
+        let email = AnalyzedEmail(message: message, assessment: assessment(for: message))
+        let viewModel = makeViewModel(
+            accounts: [],
+            reminderCreator: ThrowingReminderCreator(error: .accessDenied)
+        )
+
+        viewModel.beginReminder(for: email)
+        guard let draft = viewModel.reminderDraft else {
+            Issue.record("Expected a reminder draft")
+            return
+        }
+        await viewModel.saveReminder(draft)
+
+        #expect(viewModel.reminderDraft == draft)
+        #expect(viewModel.reminderError == .accessDenied)
+        #expect(viewModel.isCreatingReminder == false)
+    }
+
     private func makeViewModel(
         accounts: [MailAccount],
         messages: [EmailMessage] = [],
-        fetchResults: [MailAccount.ID: Result<[EmailMessage], MailFetchError>]? = nil
+        fetchResults: [MailAccount.ID: Result<[EmailMessage], MailFetchError>]? = nil,
+        reminderCreator: any ReminderCreating = ViewModelReminderCreator()
     ) -> BriefingViewModel {
         let results = fetchResults ?? Dictionary(
             uniqueKeysWithValues: accounts.map { account in
@@ -223,7 +265,19 @@ struct BriefingViewModelTests {
             analyzer: EchoAnalyzer(),
             dateProvider: DateProvider(now: { Date(timeIntervalSince1970: 100_000) })
         )
-        return BriefingViewModel(generateBrief: useCase, messageOpener: ViewModelOpener())
+        return makeViewModel(useCase: useCase, reminderCreator: reminderCreator)
+    }
+
+    private func makeViewModel(
+        useCase: GenerateInboxBriefUseCase,
+        reminderCreator: any ReminderCreating = ViewModelReminderCreator()
+    ) -> BriefingViewModel {
+        BriefingViewModel(
+            generateBrief: useCase,
+            messageOpener: ViewModelOpener(),
+            createReminderDraft: CreateReminderDraftUseCase(),
+            reminderCreator: reminderCreator
+        )
     }
 
     private func account(_ value: String) -> MailAccount {
@@ -357,4 +411,27 @@ private actor GatedAnalyzer: EmailAnalyzing {
 private struct ViewModelOpener: OriginalMessageOpening {
     @MainActor
     func open(_ target: OriginalMessageTarget) async -> Bool { true }
+}
+
+private struct ViewModelReminderCreator: ReminderCreating {
+    @MainActor
+    func create(_ draft: ReminderDraft) async throws {}
+}
+
+@MainActor
+private final class RecordingReminderCreator: ReminderCreating {
+    private(set) var createdDraft: ReminderDraft?
+
+    func create(_ draft: ReminderDraft) async throws {
+        createdDraft = draft
+    }
+}
+
+private struct ThrowingReminderCreator: ReminderCreating {
+    let error: ReminderCreationError
+
+    @MainActor
+    func create(_ draft: ReminderDraft) async throws {
+        throw error
+    }
 }

@@ -60,7 +60,9 @@ struct AppContainer {
         return AppContainer(
             briefingViewModel: BriefingViewModel(
                 generateBrief: useCase,
-                messageOpener: SystemOriginalMessageOpener()
+                messageOpener: SystemOriginalMessageOpener(),
+                createReminderDraft: CreateReminderDraftUseCase(),
+                reminderCreator: EventKitReminderCreator()
             ),
             accountsViewModel: AccountsViewModel(gateway: accounts)
         )
@@ -76,7 +78,9 @@ struct AppContainer {
         return AppContainer(
             briefingViewModel: BriefingViewModel(
                 generateBrief: useCase,
-                messageOpener: UnconfiguredMessageOpener()
+                messageOpener: UnconfiguredMessageOpener(),
+                createReminderDraft: CreateReminderDraftUseCase(),
+                reminderCreator: UnconfiguredReminderCreator()
             ),
             accountsViewModel: AccountsViewModel(gateway: accounts)
         )
@@ -113,4 +117,11 @@ private struct UnconfiguredEmailAnalyzer: EmailAnalyzing {
 private struct UnconfiguredMessageOpener: OriginalMessageOpening {
     @MainActor
     func open(_ target: OriginalMessageTarget) async -> Bool { false }
+}
+
+private struct UnconfiguredReminderCreator: ReminderCreating {
+    @MainActor
+    func create(_ draft: ReminderDraft) async throws {
+        throw ReminderCreationError.unavailable
+    }
 }
