@@ -33,12 +33,24 @@ jobs:
           -project InboxBrief.xcodeproj
           -scheme InboxBrief
 
+      - name: Install iOS Simulator runtime
+        run: |
+          runtime_directory="$RUNNER_TEMP/ios-simulator-runtime"
+          mkdir -p "$runtime_directory"
+          xcodebuild -downloadPlatform iOS -exportPath "$runtime_directory"
+          xcodebuild -importPlatform "$runtime_directory"/*.dmg
+
+      - name: Create simulator
+        run: |
+          simulator_id="$(xcrun simctl create 'InboxBrief CI' 'iPhone 16 Pro')"
+          echo "SIMULATOR_ID=$simulator_id" >> "$GITHUB_ENV"
+
       - name: Run tests
         run: >-
           xcodebuild test
           -project InboxBrief.xcodeproj
           -scheme InboxBrief
-          -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=latest'
+          -destination 'platform=iOS Simulator,id=${{ env.SIMULATOR_ID }}'
           -parallel-testing-enabled NO
           -resultBundlePath TestResults.xcresult
 
