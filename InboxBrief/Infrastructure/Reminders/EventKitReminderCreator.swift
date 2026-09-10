@@ -2,12 +2,17 @@ import EventKit
 import Foundation
 
 @MainActor
-final class EventKitReminderCreator: ReminderCreating {
+final class EventKitReminderCreator {
     private let eventStore: EKEventStore
 
     init(eventStore: EKEventStore = EKEventStore()) {
         self.eventStore = eventStore
     }
+}
+
+// MARK: - ReminderCreating
+
+extension EventKitReminderCreator: ReminderCreating {
 
     func create(_ draft: ReminderDraft) async throws {
         try await requestAccessIfNeeded()
@@ -31,6 +36,11 @@ final class EventKitReminderCreator: ReminderCreating {
         }
     }
 
+}
+
+// MARK: - Private
+
+private extension EventKitReminderCreator {
     private func requestAccessIfNeeded() async throws {
         switch EKEventStore.authorizationStatus(for: .reminder) {
         case .fullAccess:

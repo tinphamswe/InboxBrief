@@ -3,7 +3,7 @@ import Foundation
 import UIKit
 
 @MainActor
-final class AppAuthGmailAuthenticationService: AccountGateway, GmailAccessTokenProviding {
+final class AppAuthGmailAuthenticationService {
     private struct GoogleProfileDTO: Decodable {
         let sub: String
         let email: String
@@ -27,6 +27,11 @@ final class AppAuthGmailAuthenticationService: AccountGateway, GmailAccessTokenP
         self.metadata = metadata
         self.transport = transport
     }
+}
+
+// MARK: - AccountGateway
+
+extension AppAuthGmailAuthenticationService: AccountGateway {
 
     func connectedAccounts() async throws -> [MailAccount] {
         let saved = try await metadata.accounts()
@@ -84,6 +89,11 @@ final class AppAuthGmailAuthenticationService: AccountGateway, GmailAccessTokenP
         try await credentials.removeData(for: account.id)
         try await metadata.remove(account.id)
     }
+}
+
+// MARK: - GmailAccessTokenProviding
+
+extension AppAuthGmailAuthenticationService: GmailAccessTokenProviding {
 
     func accessToken(for accountID: MailAccount.ID, forceRefresh: Bool) async throws -> String {
         guard let state = try await loadState(for: accountID) else {
@@ -107,6 +117,11 @@ final class AppAuthGmailAuthenticationService: AccountGateway, GmailAccessTokenP
         try await save(state, for: accountID)
         return token
     }
+}
+
+// MARK: - Private
+
+private extension AppAuthGmailAuthenticationService {
 
     private func authorize(loginHint: String?) async throws -> OIDAuthState {
         guard let configuration else { throw AccountManagementError.configurationMissing }
