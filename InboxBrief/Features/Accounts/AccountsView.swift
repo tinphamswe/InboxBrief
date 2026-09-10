@@ -34,7 +34,10 @@ struct AccountsView: View {
                 ProgressView("Loading accounts…")
             }
         }
-        .task { await viewModel.load() }
+        .task {
+            guard !viewModel.hasLoadedAccounts else { return }
+            await viewModel.load()
+        }
         .alert(
             "Account problem",
             isPresented: Binding(

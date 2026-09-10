@@ -7,6 +7,7 @@ final class AccountsViewModel {
 
     private(set) var accounts: [MailAccount] = []
     private(set) var isLoading = false
+    private(set) var hasLoadedAccounts = false
     private(set) var errorMessage: String?
 
     init(gateway: any AccountGateway) {
@@ -14,10 +15,12 @@ final class AccountsViewModel {
     }
 
     func load() async {
+        guard !isLoading else { return }
         isLoading = true
         defer { isLoading = false }
         do {
             accounts = try await gateway.connectedAccounts()
+            hasLoadedAccounts = true
             errorMessage = nil
         } catch is CancellationError {
             return

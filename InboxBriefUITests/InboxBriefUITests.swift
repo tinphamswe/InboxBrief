@@ -8,6 +8,7 @@
 import XCTest
 
 final class InboxBriefUITests: XCTestCase {
+    private let uiTimeout: TimeInterval = 2
 
     override func setUpWithError() throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.
@@ -23,30 +24,19 @@ final class InboxBriefUITests: XCTestCase {
     }
 
     @MainActor
-    func testInitialTriageAndAccountNavigation() throws {
+    func testLaunchWithoutAccountsShowsAccountSetup() throws {
         let app = XCUIApplication()
         app.launch()
 
-        XCTAssertTrue(app.navigationBars["Inbox Brief"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["Check inboxes"].exists)
+        XCTAssertTrue(app.navigationBars["Inbox Brief"].waitForExistence(timeout: uiTimeout))
+        XCTAssertTrue(app.staticTexts["Connect a Gmail account"].exists)
+        let manageAccounts = app.buttons["Manage accounts"]
+        XCTAssertTrue(manageAccounts.exists)
 
-        app.buttons["Accounts"].tap()
+        manageAccounts.tap()
 
-        XCTAssertTrue(app.navigationBars["Accounts"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.navigationBars["Accounts"].waitForExistence(timeout: uiTimeout))
         XCTAssertTrue(app.buttons["Add Gmail account"].exists)
-    }
-
-    @MainActor
-    func testCheckInboxesShowsMissingAccountState() throws {
-        let app = XCUIApplication()
-        app.launch()
-
-        let checkButton = app.buttons["Check inboxes"]
-        XCTAssertTrue(checkButton.waitForExistence(timeout: 3))
-        checkButton.tap()
-
-        XCTAssertTrue(app.staticTexts["Connect a Gmail account"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["Manage accounts"].exists)
     }
 
     @MainActor

@@ -9,3 +9,4 @@ Secrets.xcconfig
 .env
 .env.*
 !.env.example
+buildServer.json

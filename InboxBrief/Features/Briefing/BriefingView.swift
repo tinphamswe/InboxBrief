@@ -28,7 +28,14 @@ struct BriefingView: View {
                     NavigationLink {
                         AccountsView(viewModel: accountsViewModel)
                     } label: {
-                        Label("Accounts", systemImage: "person.crop.circle.badge.checkmark")
+                        Label(
+                            "Accounts",
+                            systemImage: accountsViewModel.accounts.contains {
+                                $0.connectionState == .connected
+                            }
+                                ? "person.crop.circle.badge.checkmark"
+                                : "person.crop.circle"
+                        )
                     }
                 }
             }
@@ -43,6 +50,14 @@ struct BriefingView: View {
             Button("OK", role: .cancel) { viewModel.dismissOpenMessageNotice() }
         } message: {
             Text(viewModel.openMessageNotice ?? "")
+        }
+        .onChange(of: accountsViewModel.accounts) { _, accounts in
+            viewModel.updateAccountAvailability(accounts)
+        }
+        .task {
+            await accountsViewModel.load()
+            guard accountsViewModel.hasLoadedAccounts else { return }
+            viewModel.setInitialAccountAvailability(accountsViewModel.accounts)
         }
     }
 

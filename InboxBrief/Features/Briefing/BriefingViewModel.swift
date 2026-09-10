@@ -116,6 +116,26 @@ final class BriefingViewModel {
         openMessageNotice = nil
     }
 
+    /// Chooses the first-run onboarding state from successfully loaded local account metadata.
+    func setInitialAccountAvailability(_ accounts: [MailAccount]) {
+        guard case .idle = state,
+              !accounts.contains(where: { $0.connectionState == .connected }) else {
+            return
+        }
+        state = .needsAccounts
+    }
+
+    /// Returns the onboarding screen to its initial state after an account is
+    /// connected from account management. The user can then explicitly choose
+    /// when to generate their first briefing.
+    func updateAccountAvailability(_ accounts: [MailAccount]) {
+        guard case .needsAccounts = state,
+              accounts.contains(where: { $0.connectionState == .connected }) else {
+            return
+        }
+        state = .idle
+    }
+
     private func map(_ error: BriefGenerationError, previous: InboxBrief?) -> State {
         switch error {
         case .noConnectedAccounts:

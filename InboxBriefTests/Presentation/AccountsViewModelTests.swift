@@ -13,8 +13,23 @@ struct AccountsViewModelTests {
         await viewModel.load()
 
         #expect(viewModel.accounts == [account])
+        #expect(viewModel.hasLoadedAccounts)
         #expect(!viewModel.isLoading)
         #expect(viewModel.errorMessage == nil)
+    }
+
+    @Test("does not mark a failed account load as complete")
+    func failedLoad() async {
+        let gateway = AccountsGatewayFake(
+            accounts: [],
+            accountsError: .authenticationFailed
+        )
+        let viewModel = AccountsViewModel(gateway: gateway)
+
+        await viewModel.load()
+
+        #expect(!viewModel.hasLoadedAccounts)
+        #expect(viewModel.errorMessage == "Connected accounts couldn’t be loaded.")
     }
 
     @Test("adds a Gmail account")
@@ -67,19 +82,25 @@ private final class AccountsGatewayFake: AccountGateway {
     private var storedAccounts: [MailAccount]
     private let accountToConnect: MailAccount?
     private let connectError: AccountManagementError?
+    private let accountsError: AccountManagementError?
     private(set) var disconnectedIDs: [MailAccount.ID] = []
 
     init(
         accounts: [MailAccount],
         accountToConnect: MailAccount? = nil,
-        connectError: AccountManagementError? = nil
+        connectError: AccountManagementError? = nil,
+        accountsError: AccountManagementError? = nil
     ) {
         storedAccounts = accounts
         self.accountToConnect = accountToConnect
         self.connectError = connectError
+        self.accountsError = accountsError
     }
 
-    func connectedAccounts() async throws -> [MailAccount] { storedAccounts }
+    func connectedAccounts() async throws -> [MailAccount] {
+        if let accountsError { throw accountsError }
+        return storedAccounts
+    }
 
     func connect(provider: MailProvider) async throws -> MailAccount {
         if let connectError { throw connectError }

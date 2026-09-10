@@ -47,6 +47,36 @@ struct BriefingViewModelTests {
         #expect(viewModel.state == .needsAccounts)
     }
 
+    @Test("shows onboarding after an initial empty account load")
+    func initialEmptyAccounts() {
+        let viewModel = makeViewModel(accounts: [])
+
+        viewModel.setInitialAccountAvailability([])
+
+        #expect(viewModel.state == .needsAccounts)
+    }
+
+    @Test("keeps the briefing ready after an initial connected account load")
+    func initialConnectedAccounts() {
+        let account = account("existing")
+        let viewModel = makeViewModel(accounts: [])
+
+        viewModel.setInitialAccountAvailability([account])
+
+        #expect(viewModel.state == .idle)
+    }
+
+    @Test("returns to checking inboxes after an account is connected")
+    func accountConnectedAfterOnboarding() async {
+        let account = account("new-account")
+        let viewModel = makeViewModel(accounts: [])
+
+        await viewModel.refresh()
+        viewModel.updateAccountAvailability([account])
+
+        #expect(viewModel.state == .idle)
+    }
+
     @Test("retains partial account results")
     func partial() async {
         let good = account("good")
